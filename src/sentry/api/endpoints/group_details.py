@@ -303,58 +303,11 @@ class GroupDetailsEndpoint(GroupEndpoint):
             ).delete()
 
         if 'assignedTo' in result:
-            now = timezone.now()
-
+            acting_user = request.user if request.user.is_authenticated() else None
             if result['assignedTo']:
-                assignee, created = GroupAssignee.objects.get_or_create(
-                    group=group,
-                    defaults={
-                        'project': group.project,
-                        'user': result['assignedTo'],
-                        'date_added': now,
-                    }
-                )
-
-                if not created:
-                    affected = GroupAssignee.objects.filter(
-                        group=group,
-                    ).exclude(
-                        user=result['assignedTo'],
-                    ).update(
-                        user=result['assignedTo'],
-                        date_added=now
-                    )
-                else:
-                    affected = True
-
-                if affected:
-                    activity = Activity.objects.create(
-                        project=group.project,
-                        group=group,
-                        type=Activity.ASSIGNED,
-                        user=acting_user,
-                        data={
-                            'assignee': result['assignedTo'].id,
-                        }
-                    )
-                    activity.send_notification()
-
+                group.assign(acting_user, result['assignedTo'])
             else:
-                affected = GroupAssignee.objects.filter(
-                    group=group,
-                )[:1].count()
-                GroupAssignee.objects.filter(
-                    group=group,
-                ).delete()
-
-                if affected > 0:
-                    activity = Activity.objects.create(
-                        project=group.project,
-                        group=group,
-                        type=Activity.UNASSIGNED,
-                        user=acting_user,
-                    )
-                    activity.send_notification()
+                group.unassign(acting_user)
 
         return Response(serialize(group, request.user))
 

@@ -291,6 +291,63 @@ class Group(Model):
         message = strip(self.message)
         return '\n' in message or len(message) > 100
 
+    def assign(self, initiator, user_email):
+        """ assign a group to a user given their email """
+        from sentry.models import GroupAssignee, Activity
+        now = timezone.now()
+        assignee, created = GroupAssignee.objects.get_or_create(
+            group=self,
+            defaults={
+                'project': self.project,
+                'user': user_email,
+                'date_added': now,
+            }
+        )
+
+        if not created:
+            affected = GroupAssignee.objects.filter(
+                group=self,
+            ).exclude(
+                user=user_email,
+            ).update(
+                user=user_email,
+                date_added=now
+            )
+        else:
+            affected = True
+
+        if affected:
+            activity = Activity.objects.create(
+                project=self.project,
+                group=self,
+                type=Activity.ASSIGNED,
+                user=initiator,
+                data={
+                    'assignee': user_email.id,
+                }
+            )
+            activity.send_notification()
+
+    def unassign(self, initiator):
+        """ clear group assignment """
+        from sentry.models import GroupAssignee, Activity
+
+        affected = GroupAssignee.objects.filter(
+            group=self,
+        )[:1].count()
+        GroupAssignee.objects.filter(
+            group=self,
+        ).delete()
+
+        if affected > 0:
+            activity = Activity.objects.create(
+                project=self.project,
+                group=self,
+                type=Activity.UNASSIGNED,
+                user=initiator,
+            )
+            activity.send_notification()
+
     @property
     def title(self):
         culprit = strip(self.culprit)
