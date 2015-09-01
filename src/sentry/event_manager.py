@@ -20,7 +20,7 @@ from django.utils.encoding import force_bytes
 from hashlib import md5
 from uuid import uuid4
 
-from sentry.app import buffer, tsdb
+from sentry.app import buffer, tsdb, search
 from sentry.constants import (
     CLIENT_RESERVED_ATTRS, LOG_LEVELS, DEFAULT_LOGGER_NAME, MAX_CULPRIT_LENGTH,
     MAX_TAG_VALUE_LENGTH
@@ -494,7 +494,8 @@ class EventManager(object):
         else:
             self.logger.info('Raw event passed; skipping post process for event_id=%s', event_id)
 
-        index_event.delay(event)
+        if search.index_required():
+            index_event.delay(event)
 
         # TODO: move this to the queue
         if is_regression and not raw:

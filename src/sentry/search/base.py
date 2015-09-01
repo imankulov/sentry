@@ -21,6 +21,10 @@ class SearchBackend(object):
         Raise ``InvalidConfiguration`` if there is a configuration error.
         """
 
+    def index_required(self):
+        """ return True if manual calling for the "index" task required """
+        return True
+
     def index(self, event):
         raise NotImplementedError
 

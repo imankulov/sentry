@@ -20,6 +20,10 @@ from sentry.utils.db import get_db_engine
 
 
 class DjangoSearchBackend(SearchBackend):
+
+    def index_required(self):
+        return False
+
     def index(self, event):
         pass
 
